@@ -7,6 +7,9 @@ full control over frequency and duty cycle per channel.
 At 50 MHz, the formula for a 50% duty cycle square wave at frequency F is:
 `on_count = off_count = 25_000_000 // F`
 
+Both counts are 16-bit, so the minimum programmable frequency is approximately 382 Hz
+(`on_count = off_count = 65535`).
+
 Setting `on_count=0` silences the channel (output held LOW regardless of `off_count`).
 Setting `off_count=0` with `on_count>0` holds the output continuously HIGH.
 
@@ -21,15 +24,15 @@ The SPI master (e.g. RP2350 running MicroPython) programs each channel using
 - Byte 0: `0x80 | reg_addr` (write), or `reg_addr` (read)
 - Byte 1: data
 
-Register map (6 registers per channel, big-endian):
+Register map (4 registers per channel, big-endian):
 
-| Reg  | Ch | Field                        |
-|------|----|------------------------------|
-| 0–2  | 0  | on_count [23:16], [15:8], [7:0]  |
-| 3–5  | 0  | off_count [23:16], [15:8], [7:0] |
-| 6–11 | 1  | on_count, off_count          |
-| 12–17| 2  | on_count, off_count          |
-| 18–23| 3  | on_count, off_count          |
+| Reg  | Ch | Field                     |
+|------|----|---------------------------|
+| 0–1  | 0  | on_count [15:8], [7:0]    |
+| 2–3  | 0  | off_count [15:8], [7:0]   |
+| 4–7  | 1  | on_count, off_count       |
+| 8–11 | 2  | on_count, off_count       |
+| 12–15| 3  | on_count, off_count       |
 
 SPI mode: CPOL and CPHA set via `ui[0]` and `ui[1]` respectively.
 
@@ -48,8 +51,8 @@ def write_reg(reg, val):
 
 # 1 kHz: on = off = 25_000_000 // 1_000 = 25_000
 on = off = 25_000
-for i, v in enumerate([(on>>16)&0xFF, (on>>8)&0xFF, on&0xFF,
-                        (off>>16)&0xFF, (off>>8)&0xFF, off&0xFF]):
+for i, v in enumerate([(on>>8)&0xFF, on&0xFF,
+                        (off>>8)&0xFF, off&0xFF]):
     write_reg(i, v)
 ```
 

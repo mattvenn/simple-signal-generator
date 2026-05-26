@@ -16,8 +16,8 @@ module tt_um_mattvenn_signal_generator (
     input  wire       rst_n
 );
 
-    localparam NUM_CFG    = 24;
-    localparam NUM_STATUS = 24;
+    localparam NUM_CFG    = 16;
+    localparam NUM_STATUS = 16;
     localparam REG_WIDTH  = 8;
 
     wire [NUM_CFG*REG_WIDTH-1:0]    config_regs;
@@ -61,22 +61,20 @@ module tt_um_mattvenn_signal_generator (
         .status_regs(status_regs)
     );
 
-    // 4 square wave generators; channel i uses config regs [i*6 .. i*6+5]
+    // 4 square wave generators; channel i uses config regs [i*4 .. i*4+3]
     // config_regs layout: reg N occupies bits [N*8+7 : N*8]
-    // on_count  = {reg[i*6], reg[i*6+1], reg[i*6+2]} = MSB..LSB
-    // off_count = {reg[i*6+3], reg[i*6+4], reg[i*6+5]}
+    // on_count  = {reg[i*4], reg[i*4+1]} = MSB..LSB (16-bit)
+    // off_count = {reg[i*4+2], reg[i*4+3]}
     genvar i;
     generate
         for (i = 0; i < 4; i = i + 1) begin : gen_ch
             sq_wave_gen ch_inst (
                 .clk      (clk),
                 .rst_n    (rst_n),
-                .on_count ({config_regs[i*48 +  7 -: 8],
-                            config_regs[i*48 + 15 -: 8],
-                            config_regs[i*48 + 23 -: 8]}),
-                .off_count({config_regs[i*48 + 31 -: 8],
-                            config_regs[i*48 + 39 -: 8],
-                            config_regs[i*48 + 47 -: 8]}),
+                .on_count ({config_regs[i*32 +  7 -: 8],
+                            config_regs[i*32 + 15 -: 8]}),
+                .off_count({config_regs[i*32 + 23 -: 8],
+                            config_regs[i*32 + 31 -: 8]}),
                 .out      (uo_out[i])
             );
         end

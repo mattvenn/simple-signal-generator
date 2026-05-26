@@ -110,14 +110,12 @@ async def spi_read(clk, port_in, port_out, address):
 
 
 async def set_channel(clk, uio_in, channel, on_count, off_count):
-    """Write on_count and off_count (24-bit each) for the given channel (0-3)."""
-    base = channel * 6
-    await spi_write(clk, uio_in, base + 0, (on_count  >> 16) & 0xFF)
-    await spi_write(clk, uio_in, base + 1, (on_count  >>  8) & 0xFF)
-    await spi_write(clk, uio_in, base + 2,  on_count         & 0xFF)
-    await spi_write(clk, uio_in, base + 3, (off_count >> 16) & 0xFF)
-    await spi_write(clk, uio_in, base + 4, (off_count >>  8) & 0xFF)
-    await spi_write(clk, uio_in, base + 5,  off_count        & 0xFF)
+    """Write on_count and off_count (16-bit each) for the given channel (0-3)."""
+    base = channel * 4
+    await spi_write(clk, uio_in, base + 0, (on_count  >>  8) & 0xFF)
+    await spi_write(clk, uio_in, base + 1,  on_count         & 0xFF)
+    await spi_write(clk, uio_in, base + 2, (off_count >>  8) & 0xFF)
+    await spi_write(clk, uio_in, base + 3,  off_count        & 0xFF)
 
 
 async def count_rising_edges(clk, signal, bit_idx, n_cycles):
@@ -147,14 +145,14 @@ async def reset_dut(dut):
 
 @cocotb.test()
 async def test_spi_registers(dut):
-    """Write random data to all 24 config registers and read back."""
+    """Write random data to all 16 config registers and read back."""
     dut._log.info("test_spi_registers: start")
     clock = Clock(dut.clk, 20, units="ns")   # 50 MHz
     cocotb.start_soon(clock.start())
     await reset_dut(dut)
 
     for _ in range(3):
-        written = [random.randint(0, 0xFF) for _ in range(24)]
+        written = [random.randint(0, 0xFF) for _ in range(16)]
 
         for reg, val in enumerate(written):
             await spi_write(dut.clk, dut.uio_in, reg, val)

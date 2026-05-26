@@ -39,19 +39,17 @@ def init_spi():
 
 def _write_reg(spi, cs, addr, data):
     cs(0)
-    spi.write(bytes([0x80 | (addr & 0x3F), data & 0xFF]))
+    spi.write(bytes([0x80 | (addr & 0x1F), data & 0xFF]))
     cs(1)
 
 
 def set_channel_counts(spi, cs, ch, on_count, off_count):
-    """Program channel ch (0–3) with explicit cycle counts."""
-    base = ch * 6
-    _write_reg(spi, cs, base + 0, (on_count  >> 16) & 0xFF)
-    _write_reg(spi, cs, base + 1, (on_count  >>  8) & 0xFF)
-    _write_reg(spi, cs, base + 2,  on_count         & 0xFF)
-    _write_reg(spi, cs, base + 3, (off_count >> 16) & 0xFF)
-    _write_reg(spi, cs, base + 4, (off_count >>  8) & 0xFF)
-    _write_reg(spi, cs, base + 5,  off_count        & 0xFF)
+    """Program channel ch (0–3) with explicit cycle counts (16-bit max)."""
+    base = ch * 4
+    _write_reg(spi, cs, base + 0, (on_count  >>  8) & 0xFF)
+    _write_reg(spi, cs, base + 1,  on_count         & 0xFF)
+    _write_reg(spi, cs, base + 2, (off_count >>  8) & 0xFF)
+    _write_reg(spi, cs, base + 3,  off_count        & 0xFF)
 
 
 def set_channel(spi, cs, ch, freq_hz):

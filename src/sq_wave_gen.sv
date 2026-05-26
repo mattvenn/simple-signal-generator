@@ -8,8 +8,8 @@
 module sq_wave_gen (
     input  wire        clk,
     input  wire        rst_n,
-    input  wire [23:0] on_count,
-    input  wire [23:0] off_count,
+    input  wire [15:0] on_count,
+    input  wire [15:0] off_count,
     output reg         out
 );
 
@@ -20,12 +20,12 @@ module sq_wave_gen (
     } state_t;
 
     state_t  state;
-    reg [23:0] counter;
+    reg [15:0] counter;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             state   <= IDLE;
-            counter <= 24'd0;
+            counter <= 16'd0;
             out     <= 1'b0;
         end else begin
             case (state)
@@ -39,7 +39,7 @@ module sq_wave_gen (
                 end
 
                 HIGH: begin
-                    if (counter <= 24'd1) begin
+                    if (counter <= 16'd1) begin
                         if (on_count == 0 && off_count == 0) begin
                             state <= IDLE;
                             out   <= 1'b0;
@@ -52,12 +52,12 @@ module sq_wave_gen (
                             counter <= on_count;
                         end
                     end else begin
-                        counter <= counter - 24'd1;
+                        counter <= counter - 16'd1;
                     end
                 end
 
                 LOW: begin
-                    if (counter <= 24'd1) begin
+                    if (counter <= 16'd1) begin
                         if (on_count == 0 && off_count == 0) begin
                             state <= IDLE;
                             out   <= 1'b0;
@@ -70,7 +70,7 @@ module sq_wave_gen (
                             counter <= off_count;
                         end
                     end else begin
-                        counter <= counter - 24'd1;
+                        counter <= counter - 16'd1;
                     end
                 end
 
