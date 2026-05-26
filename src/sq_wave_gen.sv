@@ -31,7 +31,7 @@ module sq_wave_gen (
             case (state)
 
                 IDLE: begin
-                    if (on_count != 0 || off_count != 0) begin
+                    if (on_count != 0) begin
                         state   <= HIGH;
                         counter <= on_count;
                         out     <= 1'b1;
