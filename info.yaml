@@ -18,6 +18,13 @@ project:
   # Don't forget to also update `PROJECT_SOURCES` in test/Makefile.
   source_files:
     - "project.v"
+    - "sq_wave_gen.sv"
+    - "spi_wrapper.sv"
+    - "spi_reg.sv"
+    - "rising_edge_detector.sv"
+    - "falling_edge_detector.sv"
+    - "synchronizer.sv"
+    - "reclocking.sv"
 
 # The pinout of your project. Leave unused pins blank. DO NOT delete or add any pins.
 # This section is for the datasheet/website. Use descriptive names (e.g., RX, TX, MOSI, SCL, SEG_A, etc.).
