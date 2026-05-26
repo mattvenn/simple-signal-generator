@@ -11,3 +11,8 @@ test/sim_build
 test/__pycache__/
 test/results.xml
 test/gate_level_netlist.v
+build/
+tt/
+venv/
+src/_tt_fpga_top.v
+measure_frequency.py
