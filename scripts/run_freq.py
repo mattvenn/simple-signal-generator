@@ -1,7 +1,7 @@
 """
 Simulates the two mpremote exec calls the HIL test makes.
 Run from the project root:
-  python run_freq.py
+  python scripts/run_freq.py
 """
 import os
 import subprocess

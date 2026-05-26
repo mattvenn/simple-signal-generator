@@ -8,7 +8,7 @@ Wiring:
 Prerequisites:
   pip install pyvisa pyvisa-py  (or NI-VISA backend)
   mpremote must be on PATH
-  demo.py must already be on the RP2350 (mpremote cp demo.py :)
+  demo.py must already be on the RP2350 (mpremote cp scripts/demo.py :)
 
 Environment variables:
   SCOPE_RESOURCE   VISA resource string  (default: TCPIP0::192.168.50.11::inst0::INSTR)
