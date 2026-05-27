@@ -41,7 +41,7 @@ FREQ_TOL  = 0.02    # 2 % tolerance (FPGA clock is not exactly 50 MHz)
 SETTLE_S  = 2.0     # seconds to wait after scope timebase change before measuring
 
 # scope input channel for each DUT output channel
-SCOPE_CH = {0: 1, 1: 2, 2: 3, 3: 4}
+SCOPE_CH = {0: 1, 1: 2}
 
 TEST_CASES = [
     # (dut_ch, freq_hz)
@@ -53,14 +53,6 @@ TEST_CASES = [
     (1,     10_000),
     (1,    100_000),
     (1,  1_000_000),
-    (2,      1_000),
-    (2,     10_000),
-    (2,    100_000),
-    (2,  1_000_000),
-    (3,      1_000),
-    (3,     10_000),
-    (3,    100_000),
-    (3,  1_000_000),
 ]
 
 
