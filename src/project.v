@@ -16,8 +16,8 @@ module tt_um_mattvenn_signal_generator (
     input  wire       rst_n
 );
 
-    localparam NUM_CFG    = 16;
-    localparam NUM_STATUS = 16;
+    localparam NUM_CFG    = 8;
+    localparam NUM_STATUS = 8;
     localparam REG_WIDTH  = 8;
 
     wire [NUM_CFG*REG_WIDTH-1:0]    config_regs;
@@ -29,7 +29,7 @@ module tt_um_mattvenn_signal_generator (
     assign uio_out = {4'b0, spi_miso, 3'b0};
 
     // CPOL=ui[0], CPHA=ui[1]; unused uo_out bits
-    assign uo_out[7:4] = 4'b0;
+    assign uo_out[7:2] = 6'b0;
 
     // Status registers unused
     assign status_regs = {(NUM_STATUS*REG_WIDTH){1'b0}};
@@ -67,7 +67,7 @@ module tt_um_mattvenn_signal_generator (
     // off_count = {reg[i*4+2], reg[i*4+3]}
     genvar i;
     generate
-        for (i = 0; i < 4; i = i + 1) begin : gen_ch
+        for (i = 0; i < 2; i = i + 1) begin : gen_ch
             sq_wave_gen ch_inst (
                 .clk      (clk),
                 .rst_n    (rst_n),

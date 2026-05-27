@@ -43,8 +43,26 @@ def _write_reg(spi, cs, addr, data):
     cs(1)
 
 
+def read_reg(spi, cs, addr):
+    """Read one 8-bit register by address. Returns the byte value."""
+    tx = bytes([addr & 0x1F, 0x00])
+    rx = bytearray(2)
+    cs(0)
+    spi.write_readinto(tx, rx)
+    cs(1)
+    return rx[1]
+
+
+def get_channel_counts(spi, cs, ch):
+    """Read back on_count and off_count for channel ch. Returns (on, off)."""
+    base = ch * 4
+    on_count  = (read_reg(spi, cs, base + 0) << 8) | read_reg(spi, cs, base + 1)
+    off_count = (read_reg(spi, cs, base + 2) << 8) | read_reg(spi, cs, base + 3)
+    return on_count, off_count
+
+
 def set_channel_counts(spi, cs, ch, on_count, off_count):
-    """Program channel ch (0–3) with explicit cycle counts (16-bit max)."""
+    """Program channel ch (0–1) with explicit cycle counts (16-bit max)."""
     base = ch * 4
     _write_reg(spi, cs, base + 0, (on_count  >>  8) & 0xFF)
     _write_reg(spi, cs, base + 1,  on_count         & 0xFF)
@@ -53,7 +71,7 @@ def set_channel_counts(spi, cs, ch, on_count, off_count):
 
 
 def set_channel(spi, cs, ch, freq_hz):
-    """Program channel ch (0–3) to output freq_hz square wave (~50% duty)."""
+    """Program channel ch (0–1) to output freq_hz square wave (~50% duty)."""
     period = CLOCK_HZ // freq_hz
     on_count  = period // 2
     off_count = period - on_count
@@ -66,7 +84,7 @@ def silence(spi, cs, ch):
 
 
 def silence_all(spi, cs):
-    for ch in range(4):
+    for ch in range(2):
         silence(spi, cs, ch)
 
 
@@ -75,12 +93,8 @@ if __name__ == "__main__":
     spi, cs = init_spi()
     silence_all(spi, cs)
 
-    set_channel(spi, cs, 0,     1_000)   # ch0:   1 kHz
-    set_channel(spi, cs, 1,    10_000)   # ch1:  10 kHz
-    set_channel(spi, cs, 2,   100_000)   # ch2: 100 kHz
-    set_channel(spi, cs, 3, 1_000_000)   # ch3:   1 MHz
+    set_channel(spi, cs, 0,   1_000)   # ch0:   1 kHz
+    set_channel(spi, cs, 1, 100_000)   # ch1: 100 kHz
 
     print("ch0:   1 kHz  → uo_out[0]")
-    print("ch1:  10 kHz  → uo_out[1]")
-    print("ch2: 100 kHz  → uo_out[2]")
-    print("ch3:   1 MHz  → uo_out[3]")
+    print("ch1: 100 kHz  → uo_out[1]")

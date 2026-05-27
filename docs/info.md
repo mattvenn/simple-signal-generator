@@ -1,6 +1,6 @@
 ## How it works
 
-Four independent square wave generators drive `uo[3:0]`. Each channel's high-time
+Two independent square wave generators drive `uo[1:0]`. Each channel's high-time
 (`on_count`) and low-time (`off_count`) are programmed independently via SPI, giving
 full control over frequency and duty cycle per channel.
 
@@ -26,13 +26,12 @@ The SPI master (e.g. RP2350 running MicroPython) programs each channel using
 
 Register map (4 registers per channel, big-endian):
 
-| Reg  | Ch | Field                     |
-|------|----|---------------------------|
-| 0–1  | 0  | on_count [15:8], [7:0]    |
-| 2–3  | 0  | off_count [15:8], [7:0]   |
-| 4–7  | 1  | on_count, off_count       |
-| 8–11 | 2  | on_count, off_count       |
-| 12–15| 3  | on_count, off_count       |
+| Reg | Ch | Field                   |
+|-----|----|-------------------------|
+| 0–1 | 0  | on_count [15:8], [7:0]  |
+| 2–3 | 0  | off_count [15:8], [7:0] |
+| 4–5 | 1  | on_count [15:8], [7:0]  |
+| 6–7 | 1  | off_count [15:8], [7:0] |
 
 SPI mode: CPOL and CPHA set via `ui[0]` and `ui[1]` respectively.
 
@@ -103,4 +102,4 @@ frequency is within 2% of expected.
 ## External hardware
 
 - RP2350 (or any SPI master) connected to `uio[6:4]` (MOSI, CLK, CS_N) and `uio[3]` (MISO)
-- Oscilloscope or frequency counter on `uo[3:0]`
+- Oscilloscope or frequency counter on `uo[1:0]`

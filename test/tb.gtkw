@@ -1,39 +1,63 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Mon Nov 20 16:00:28 2023
+[*] Wed May 27 15:19:11 2026
 [*]
-[dumpfile] "/home/uri/p/tt-new-template-proto/test/tb.fst"
-[dumpfile_mtime] "Mon Nov 20 15:58:34 2023"
-[dumpfile_size] 1110
-[savefile] "/home/uri/p/tt-new-template-proto/test/tb.gtkw"
-[timestart] 0
-[size] 1376 600
-[pos] -1 -1
-*-24.534533 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[dumpfile] "/home/matt/work/asic-workshop/shuttle-ttgf26a/simple-signal-generator/test/sim_build/rtl/tb.fst"
+[dumpfile_mtime] "Wed May 27 13:52:56 2026"
+[dumpfile_size] 74502
+[savefile] "/home/matt/work/asic-workshop/shuttle-ttgf26a/simple-signal-generator/test/tb.gtkw"
+[timestart] 573240000
+[size] 2180 1021
+[pos] 1482 237
+*-23.900000 659900003 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] tb.
-[sst_width] 297
-[signals_width] 230
+[treeopen] tb.user_project.
+[treeopen] tb.user_project.gen_ch[0].
+[treeopen] tb.user_project.gen_ch[1].
+[sst_width] 343
+[signals_width] 388
 [sst_expanded] 1
-[sst_vpaned_height] 158
+[sst_vpaned_height] 303
 @28
-tb.user_project.ena
-@29
-tb.user_project.clk
+tb.clk
+tb.rst_n
+@22
+tb.uo_out[7:0]
+@800022
+tb.uio_in[7:0]
 @28
-tb.user_project.rst_n
-@200
--Inputs
-@22
-tb.user_project.ui_in[7:0]
-@200
--Bidirectional Pins
-@22
-tb.user_project.uio_in[7:0]
-tb.user_project.uio_oe[7:0]
-tb.user_project.uio_out[7:0]
-@200
--Output Pins
-@22
-tb.user_project.uo_out[7:0]
+(0)tb.uio_in[7:0]
+(1)tb.uio_in[7:0]
+(2)tb.uio_in[7:0]
+(3)tb.uio_in[7:0]
+(4)tb.uio_in[7:0]
+(5)tb.uio_in[7:0]
+(6)tb.uio_in[7:0]
+(7)tb.uio_in[7:0]
+@800200
+-gen 0
+@8022
+tb.user_project.gen_ch[0].ch_inst.counter[15:0]
+@24
+tb.user_project.gen_ch[0].ch_inst.off_count[15:0]
+@25
+tb.user_project.gen_ch[0].ch_inst.on_count[15:0]
+@28
+tb.user_project.gen_ch[0].ch_inst.out
+@1000200
+-gen 0
+@800200
+-gen 1
+@8022
+tb.user_project.gen_ch[1].ch_inst.counter[15:0]
+@24
+tb.user_project.gen_ch[1].ch_inst.off_count[15:0]
+tb.user_project.gen_ch[1].ch_inst.on_count[15:0]
+@28
+tb.user_project.gen_ch[1].ch_inst.out
+@1000200
+-gen 1
+@1001200
+-group_end
 [pattern_trace] 1
 [pattern_trace] 0

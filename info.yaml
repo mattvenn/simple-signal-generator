@@ -3,7 +3,7 @@ project:
   title:        "Simple Signal Generator"
   author:       "Matt Venn"
   discord:      "mattvenn"
-  description:  "4-channel square wave generator with SPI-programmable on/off counts per channel"
+  description:  "2-channel square wave generator with SPI-programmable on/off counts per channel"
   language:     "Verilog"
   clock_hz:     50000000
 
@@ -42,8 +42,8 @@ pinout:
   # Outputs
   uo[0]: "Channel 0 square wave output"
   uo[1]: "Channel 1 square wave output"
-  uo[2]: "Channel 2 square wave output"
-  uo[3]: "Channel 3 square wave output"
+  uo[2]: ""
+  uo[3]: ""
   uo[4]: ""
   uo[5]: ""
   uo[6]: ""

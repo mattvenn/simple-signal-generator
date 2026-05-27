@@ -110,7 +110,7 @@ async def spi_read(clk, port_in, port_out, address):
 
 
 async def set_channel(clk, uio_in, channel, on_count, off_count):
-    """Write on_count and off_count (16-bit each) for the given channel (0-3)."""
+    """Write on_count and off_count (16-bit each) for the given channel (0-1)."""
     base = channel * 4
     await spi_write(clk, uio_in, base + 0, (on_count  >>  8) & 0xFF)
     await spi_write(clk, uio_in, base + 1,  on_count         & 0xFF)
@@ -145,14 +145,14 @@ async def reset_dut(dut):
 
 @cocotb.test()
 async def test_spi_registers(dut):
-    """Write random data to all 16 config registers and read back."""
+    """Write random data to all 8 config registers and read back."""
     dut._log.info("test_spi_registers: start")
     clock = Clock(dut.clk, 20, units="ns")   # 50 MHz
     cocotb.start_soon(clock.start())
     await reset_dut(dut)
 
     for _ in range(3):
-        written = [random.randint(0, 0xFF) for _ in range(16)]
+        written = [random.randint(0, 0xFF) for _ in range(8)]
 
         for reg, val in enumerate(written):
             await spi_write(dut.clk, dut.uio_in, reg, val)
@@ -178,14 +178,12 @@ async def test_frequency_generation(dut):
         # (channel, on_count, off_count, n_periods_to_run, expected_edges)
         (0,  5,  5, 4, 4),   # period=10 cyc, 5 MHz, run extra → ~4 edges
         (1,  5, 15, 4, 4),   # period=20 cyc, 2.5 MHz
-        (2, 20, 30, 4, 4),   # period=50 cyc, 1 MHz
-        (3,  3,  7, 4, 4),   # period=10 cyc, 5 MHz asymmetric
     ]
 
     for ch, on, off, n_periods, expected in test_cases:
         dut._log.info(f"ch{ch}: on={on} off={off}")
         # Silence all channels first
-        for c in range(4):
+        for c in range(2):
             await set_channel(dut.clk, dut.uio_in, c, 0, 0)
         await ClockCycles(dut.clk, 20)
 
@@ -206,37 +204,35 @@ async def test_frequency_generation(dut):
 
 @cocotb.test()
 async def test_channel_independence(dut):
-    """All 4 channels run simultaneously with different periods."""
+    """Both channels run simultaneously with different periods."""
     dut._log.info("test_channel_independence: start")
     clock = Clock(dut.clk, 20, units="ns")
     cocotb.start_soon(clock.start())
     await reset_dut(dut)
 
-    # Silence all, then program all 4 channels
-    for c in range(4):
+    # Silence all, then program both channels
+    for c in range(2):
         await set_channel(dut.clk, dut.uio_in, c, 0, 0)
     await ClockCycles(dut.clk, 20)
 
-    # ch0: period=10, ch1: period=14, ch2: period=20, ch3: period=40
+    # ch0: period=10, ch1: period=14
     await set_channel(dut.clk, dut.uio_in, 0,  5,  5)
     await set_channel(dut.clk, dut.uio_in, 1,  7,  7)
-    await set_channel(dut.clk, dut.uio_in, 2, 10, 10)
-    await set_channel(dut.clk, dut.uio_in, 3, 20, 20)
 
-    # Run for exactly LCM(10,14,20,40)=280 cycles
-    run_cycles = 280
-    edges = [0] * 4
-    prev  = [0] * 4
+    # Run for exactly LCM(10,14)=70 cycles → ch0: 7 edges, ch1: 5 edges
+    run_cycles = 70
+    edges = [0] * 2
+    prev  = [0] * 2
     for _ in range(run_cycles):
         await RisingEdge(dut.clk)
         val = int(dut.uo_out.value)
-        for ch in range(4):
+        for ch in range(2):
             curr = (val >> ch) & 1
             if curr == 1 and prev[ch] == 0:
                 edges[ch] += 1
             prev[ch] = curr
 
-    for ch, expected_approx in enumerate([28, 20, 14, 7]):
+    for ch, expected_approx in enumerate([7, 5]):
         assert abs(edges[ch] - expected_approx) <= 1, \
             f"ch{ch}: expected ~{expected_approx} edges, got {edges[ch]}"
 
@@ -253,7 +249,7 @@ async def test_channel_silence(dut):
     cocotb.start_soon(clock.start())
     await reset_dut(dut)
 
-    # Start a channel, then silence it
+    # Start ch0, then silence it
     await set_channel(dut.clk, dut.uio_in, 0, 10, 10)
     await ClockCycles(dut.clk, 50)   # let it run briefly
     await set_channel(dut.clk, dut.uio_in, 0, 0, 0)
