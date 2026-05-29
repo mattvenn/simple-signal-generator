@@ -8,7 +8,7 @@
  *
  * spi_offset: signed 16-bit static offset set via SPI (registers 4-5).
  *
- * enc_phase_fp: Q8 signed 24-bit fixed-point, range ±32767 cycles.
+ * enc_phase_fp: Q8 signed 16-bit fixed-point, range ±127 cycles.
  *   Updated by enc_up/enc_dn in steps of enc_step/256 cycles per click.
  *
  * sigma_delta_carry: 0 or 1, averages to enc_frac/256 per period.
@@ -33,16 +33,16 @@ module phase_shifted_gen (
 
     wire [15:0] period = on_count + off_count;
 
-    // Encoder: Q8 signed 24-bit fixed-point, range ±32767 cycles
-    localparam signed [23:0] ENC_MAX =  24'sd8388352;  // +32767 * 256
-    localparam signed [23:0] ENC_MIN = -24'sd8388352;
+    // Encoder: Q8 signed 16-bit fixed-point, range ±127 cycles
+    localparam signed [15:0] ENC_MAX =  16'sd32512;  // +127 * 256
+    localparam signed [15:0] ENC_MIN = -16'sd32512;
 
-    reg  signed [23:0] enc_phase_fp;
-    wire signed [23:0] enc_step_s  = {16'b0, enc_step};
-    wire signed [23:0] enc_next_up = enc_phase_fp + enc_step_s;
-    wire signed [23:0] enc_next_dn = enc_phase_fp - enc_step_s;
+    reg  signed [15:0] enc_phase_fp;
+    wire signed [15:0] enc_step_s  = {8'b0, enc_step};
+    wire signed [15:0] enc_next_up = enc_phase_fp + enc_step_s;
+    wire signed [15:0] enc_next_dn = enc_phase_fp - enc_step_s;
 
-    wire signed [15:0] enc_int  = enc_phase_fp[23:8];
+    wire signed  [7:0] enc_int  = enc_phase_fp[15:8];
     wire         [7:0] enc_frac = enc_phase_fp[7:0];
 
     reg  ch0_prev;
@@ -54,7 +54,7 @@ module phase_shifted_gen (
 
     // Total signed phase → actual delay in [0, period)
     wire signed [16:0] total_phase   = {spi_offset[15], spi_offset}
-                                     + {{1{enc_int[15]}}, enc_int}
+                                     + {{9{enc_int[7]}}, enc_int}
                                      + {16'b0, sd_carry};
 
     wire        [15:0] actual_delay_raw = total_phase[16] ?
@@ -74,7 +74,7 @@ module phase_shifted_gen (
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             ch0_prev     <= 1'b0;
-            enc_phase_fp <= 24'sd0;
+            enc_phase_fp <= 16'sd0;
             sd_acc       <= 8'd0;
             sd_carry     <= 1'b0;
             state        <= IDLE;

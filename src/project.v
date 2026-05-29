@@ -17,7 +17,7 @@ module tt_um_mattvenn_signal_generator (
 );
 
     localparam NUM_CFG    = 8;
-    localparam NUM_STATUS = 16;
+    localparam NUM_STATUS = 8;
     localparam REG_WIDTH  = 8;
 
     wire [NUM_CFG*REG_WIDTH-1:0]    config_regs;

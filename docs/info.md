@@ -29,7 +29,7 @@ real time. Each click changes the phase by `enc_step / 256` cycles (Q8
 fixed-point). The integer part of the encoder accumulator is added directly to
 the delay; the fractional part is dithered via first-order sigma-delta
 modulation, so sub-cycle offsets are averaged accurately over multiple periods.
-Encoder range: ±32767 cycles.
+Encoder range: ±127 cycles (use `spi_offset` for coarse positioning).
 
 **`enc_step`** (register 10): step size per encoder click in 1/256-cycle units.
 Examples:
