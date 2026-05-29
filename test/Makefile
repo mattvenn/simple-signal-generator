@@ -8,6 +8,8 @@ TOPLEVEL_LANG ?= verilog
 SRC_DIR = $(PWD)/../src
 PROJECT_SOURCES = project.v \
                   sq_wave_gen.sv \
+                  phase_shifted_gen.sv \
+                  enc_decoder.sv \
                   spi_wrapper.sv \
                   spi_reg.sv \
                   rising_edge_detector.sv \
