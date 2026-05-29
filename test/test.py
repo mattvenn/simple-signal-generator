@@ -118,8 +118,8 @@ async def set_ch0(clk, uio_in, on_count, off_count):
 
 
 async def set_enc_step(clk, uio_in, step):
-    """Write enc_step to SPI register 10."""
-    await spi_write(clk, uio_in, 10, step & 0xFF)
+    """Write enc_step to SPI register 6."""
+    await spi_write(clk, uio_in, 6, step & 0xFF)
 
 
 async def set_phase_offset(clk, uio_in, offset_cycles):
@@ -183,7 +183,7 @@ async def test_spi_registers(dut):
     await reset_dut(dut)
 
     for _ in range(3):
-        written = [random.randint(0, 0xFF) for _ in range(10)]  # regs 0-9
+        written = [random.randint(0, 0xFF) for _ in range(8)]  # regs 0-7
 
         for reg, val in enumerate(written):
             await spi_write(dut.clk, dut.uio_in, reg, val)

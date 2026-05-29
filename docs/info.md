@@ -77,7 +77,8 @@ for mode 0).
 | 3 | ch0 `off_count[7:0]` | LSB |
 | 4 | `spi_offset[15:8]` | Signed 16-bit MSB; +ve=lag, −ve=lead |
 | 5 | `spi_offset[7:0]` | Signed 16-bit LSB |
-| 10 | `enc_step[7:0]` | Q8 step per encoder click (0–255) |
+| 6 | `enc_step[7:0]` | Q8 step per encoder click (0–255) |
+| 7 | — | reserved |
 
 ### MicroPython example — 10 kHz, 500-cycle lag, encoder fine-tune
 

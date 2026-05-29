@@ -16,7 +16,7 @@ module tt_um_mattvenn_signal_generator (
     input  wire       rst_n
 );
 
-    localparam NUM_CFG    = 16;
+    localparam NUM_CFG    = 8;
     localparam NUM_STATUS = 16;
     localparam REG_WIDTH  = 8;
 
@@ -88,9 +88,9 @@ module tt_um_mattvenn_signal_generator (
 
     // Channel 1: phase-shifted replica of ch0
     // config regs 4-5:  spi_offset[15:0] (signed; static phase offset in clock cycles)
-    // config reg  10:   enc_step[7:0]    (Q8 encoder step per click: 1/256 cycle per unit)
+    // config reg  6:    enc_step[7:0]    (Q8 encoder step per click: 1/256 cycle per unit)
     wire [15:0] ch1_spi_offset = {config_regs[39 -: 8], config_regs[47 -: 8]};
-    wire  [7:0] ch1_enc_step   = config_regs[87 -: 8];
+    wire  [7:0] ch1_enc_step   = config_regs[55 -: 8];
 
     phase_shifted_gen ch1_inst (
         .clk       (clk),

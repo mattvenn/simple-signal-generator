@@ -99,10 +99,10 @@ def get_phase_offset(spi, cs):
     return val if val < 0x8000 else val - 0x10000
 
 
-# ── Encoder step size (register 10) ─────────────────────────────────────────
+# ── Encoder step size (register 6) ──────────────────────────────────────────
 
 def set_enc_step(spi, cs, enc_step):
-    """Set encoder step size (register 10).
+    """Set encoder step size (register 6).
 
     enc_step (int, 0–255):
         Phase change per encoder click in 1/256-cycle units.
@@ -110,12 +110,12 @@ def set_enc_step(spi, cs, enc_step):
              enc_step=128 → 0.5  cycles/click  (40 clicks across ±10 cycles)
              enc_step=255 → ~1   cycle/click   (20 clicks across ±10 cycles)
     """
-    _write_reg(spi, cs, 10, enc_step & 0xFF)
+    _write_reg(spi, cs, 6, enc_step & 0xFF)
 
 
 def get_enc_step(spi, cs):
-    """Read back enc_step from register 10."""
-    return read_reg(spi, cs, 10)
+    """Read back enc_step from register 6."""
+    return read_reg(spi, cs, 6)
 
 
 # ── Example ──────────────────────────────────────────────────────────────────
