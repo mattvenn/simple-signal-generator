@@ -142,24 +142,22 @@ async def count_rising_edges(clk, signal, bit_idx, n_cycles):
     return count
 
 
-async def measure_ch1_delay(dut):
-    """After one ch0 rising edge, return how many cycles until ch1 rises."""
-    await RisingEdge(dut.clk)
-    # wait for ch0 rising edge
-    while True:
+async def measure_ch1_delay(dut, period):
+    """Cycles from a ch0 rising edge to the next ch1 rising edge (mod period)."""
+    prev_ch0 = (int(dut.uo_out.value) >> 0) & 1
+    prev_ch1 = (int(dut.uo_out.value) >> 1) & 1
+    ch0_rise_t = None
+    for tick in range(1, 4 * period):
         await RisingEdge(dut.clk)
-        ch0_curr = (int(dut.uo_out.value) >> 0) & 1
-        ch0_prev_val = getattr(measure_ch1_delay, '_ch0_prev', 0)
-        measure_ch1_delay._ch0_prev = ch0_curr
-        if ch0_curr == 1 and ch0_prev_val == 0:
-            break
-
-    # count cycles until ch1 rises
-    for delay in range(1, 10000):
-        await RisingEdge(dut.clk)
-        if (int(dut.uo_out.value) >> 1) & 1:
-            return delay
-    return None  # ch1 never rose
+        val = int(dut.uo_out.value)
+        c0 = val & 1
+        c1 = (val >> 1) & 1
+        if c0 == 1 and prev_ch0 == 0 and ch0_rise_t is None:
+            ch0_rise_t = tick
+        if c1 == 1 and prev_ch1 == 0 and ch0_rise_t is not None:
+            return tick - ch0_rise_t
+        prev_ch0, prev_ch1 = c0, c1
+    return None
 
 
 async def reset_dut(dut):
@@ -280,54 +278,59 @@ async def test_spi_phase_offset(dut):
 
     period = on + off
 
-    # Positive offsets (lag): actual_delay=k → measured d=k+1
-    # measure_ch1_delay checks ch1 high (not rising edge), so only valid for lag
-    # where ch1 fires fresh each period without overlapping into the next.
+    # Positive offsets (lag): actual_delay=k → measured d=k
     for offset_cycles in [0, 1, 5, 10, 15]:
         await set_phase_offset(dut.clk, dut.uio_in, offset_cycles)
         await ClockCycles(dut.clk, 10)
-        d = await measure_ch1_delay(dut)
-        expected = offset_cycles + 1
-        assert d == expected, \
-            f"offset=+{offset_cycles}: expected d={expected}, got {d}"
+        d = await measure_ch1_delay(dut, period)
+        assert d == offset_cycles, \
+            f"offset=+{offset_cycles}: expected d={offset_cycles}, got {d}"
 
     dut._log.info("test_spi_phase_offset: PASS")
 
 
-# ── Test 5: SPI phase offset boundary (actual_delay == off_count) ───────────
+# ── Test 5: ch1 phase delay covers the full [0, period) range ──────────────
 
 @cocotb.test()
-async def test_spi_phase_offset_boundary(dut):
-    """spi_offset == off_count must not cause ch1 to miss every other ch0 pulse."""
-    dut._log.info("test_spi_phase_offset_boundary: start")
+async def test_phase_full_range(dut):
+    """ch1's delay covers the full [0, period) range with no missing/duplicate edges."""
+    dut._log.info("test_phase_full_range: start")
     clock = Clock(dut.clk, 20, units="ns")
     cocotb.start_soon(clock.start())
     await reset_dut(dut)
 
     on, off = 20, 80  # period = 100
+    period = on + off
     await set_ch0(dut.clk, dut.uio_in, on, off)
     await set_enc_step(dut.clk, dut.uio_in, 0)  # disable encoder contribution
-    await set_phase_offset(dut.clk, dut.uio_in, off)  # actual_delay == off_count
-    await ClockCycles(dut.clk, 10)
 
-    period = on + off
-    prev_ch0 = prev_ch1 = 0
-    ch0_edges = ch1_edges = 0
-    for _ in range(6 * period):
-        await RisingEdge(dut.clk)
-        val = int(dut.uo_out.value)
-        c0 = val & 1
-        c1 = (val >> 1) & 1
-        if c0 == 1 and prev_ch0 == 0:
-            ch0_edges += 1
-        if c1 == 1 and prev_ch1 == 0:
-            ch1_edges += 1
-        prev_ch0, prev_ch1 = c0, c1
+    # Spans the old clamp boundary (off=80) and the lead/wrap region.
+    for offset_cycles in [-50, -1, 0, 1, 50, 79, 80, 99]:
+        await set_phase_offset(dut.clk, dut.uio_in, offset_cycles)
+        await ClockCycles(dut.clk, 10)
 
-    assert ch1_edges == ch0_edges, \
-        f"ch1 should pulse once per ch0 period, got ch0_edges={ch0_edges}, ch1_edges={ch1_edges}"
+        expected_delay = offset_cycles % period
+        d = await measure_ch1_delay(dut, period)
+        assert d == expected_delay, \
+            f"offset={offset_cycles}: expected delay={expected_delay}, got {d}"
 
-    dut._log.info("test_spi_phase_offset_boundary: PASS")
+        prev_ch0 = prev_ch1 = 0
+        ch0_edges = ch1_edges = 0
+        for _ in range(5 * period):
+            await RisingEdge(dut.clk)
+            val = int(dut.uo_out.value)
+            c0 = val & 1
+            c1 = (val >> 1) & 1
+            if c0 == 1 and prev_ch0 == 0:
+                ch0_edges += 1
+            if c1 == 1 and prev_ch1 == 0:
+                ch1_edges += 1
+            prev_ch0, prev_ch1 = c0, c1
+
+        assert ch1_edges == ch0_edges, \
+            f"offset={offset_cycles}: ch0_edges={ch0_edges}, ch1_edges={ch1_edges}"
+
+    dut._log.info("test_phase_full_range: PASS")
 
 
 # ── Test 6: Channel silence ──────────────────────────────────────────────────
@@ -393,39 +396,40 @@ async def test_encoder_integer_phase(dut):
     # enc_step=128 → 0.5 cycles/click; 2 clicks = 1 exact integer cycle (frac=0)
     await set_enc_step(dut.clk, dut.uio_in, 128)
     await ClockCycles(dut.clk, 20)
+    period = on + off
 
     # Reset encoder to known state 00
     _enc_idx[0] = 0
     await _set_enc_ab(dut, _ENC_STATES[0])
     await ClockCycles(dut.clk, 10)
 
-    # Baseline: enc_phase_fp=0 → actual_delay=0 → d=1
-    d0 = await measure_ch1_delay(dut)
-    assert d0 == 1, f"baseline: expected d=1 (in-phase), got {d0}"
+    # Baseline: enc_phase_fp=0 -> actual_delay=0 -> d=0
+    d0 = await measure_ch1_delay(dut, period)
+    assert d0 == 0, f"baseline: expected d=0 (in-phase), got {d0}"
 
-    # 2 CW steps → enc_phase_fp=256 (1.0 cycle), enc_int=1, frac=0 → actual_delay=1 → d=2
+    # 2 CW steps -> enc_phase_fp=256 (1.0 cycle), enc_int=1, frac=0 -> actual_delay=1 -> d=1
     await encoder_steps(dut, +2)
     await ClockCycles(dut.clk, 10)
-    d1 = await measure_ch1_delay(dut)
-    assert d1 == 2, f"after +2 steps (1 cycle lag): expected d=2, got {d1}"
+    d1 = await measure_ch1_delay(dut, period)
+    assert d1 == 1, f"after +2 steps (1 cycle lag): expected d=1, got {d1}"
 
-    # 2 more CW steps → enc_phase_fp=512 (2.0 cycles) → actual_delay=2 → d=3
+    # 2 more CW steps -> enc_phase_fp=512 (2.0 cycles) -> actual_delay=2 -> d=2
     await encoder_steps(dut, +2)
     await ClockCycles(dut.clk, 10)
-    d2 = await measure_ch1_delay(dut)
-    assert d2 == 3, f"after +4 steps (2 cycle lag): expected d=3, got {d2}"
+    d2 = await measure_ch1_delay(dut, period)
+    assert d2 == 2, f"after +4 steps (2 cycle lag): expected d=2, got {d2}"
 
-    # 2 CCW steps → back to 256 (1.0 cycle) → d=2
+    # 2 CCW steps -> back to 256 (1.0 cycle) -> d=1
     await encoder_steps(dut, -2)
     await ClockCycles(dut.clk, 10)
-    d3 = await measure_ch1_delay(dut)
-    assert d3 == 2, f"after -2 steps (back to 1 cycle): expected d=2, got {d3}"
+    d3 = await measure_ch1_delay(dut, period)
+    assert d3 == 1, f"after -2 steps (back to 1 cycle): expected d=1, got {d3}"
 
-    # 2 more CCW steps → back to 0 → d=1
+    # 2 more CCW steps -> back to 0 -> d=0
     await encoder_steps(dut, -2)
     await ClockCycles(dut.clk, 10)
-    d4 = await measure_ch1_delay(dut)
-    assert d4 == 1, f"after returning to zero: expected d=1, got {d4}"
+    d4 = await measure_ch1_delay(dut, period)
+    assert d4 == 0, f"after returning to zero: expected d=0, got {d4}"
 
     dut._log.info("test_encoder_integer_phase: PASS")
 
@@ -447,7 +451,7 @@ async def test_encoder_sigma_delta(dut):
     await ClockCycles(dut.clk, 20)
 
     # 3 CW steps → enc_phase_fp=384 (1.5 cycles), enc_int=1, enc_frac=128
-    # sigma-delta alternates carry 0,1,0,1... → actual_delay alternates 1,2 → d alternates 2,3
+    # sigma-delta alternates carry 0,1,0,1... → actual_delay alternates 1,2 → d alternates 1,2
     _enc_idx[0] = 0
     await _set_enc_ab(dut, _ENC_STATES[0])
     await encoder_steps(dut, +3)
@@ -478,14 +482,74 @@ async def test_encoder_sigma_delta(dut):
     dut._log.info(f"sigma-delta delays: {delays}")
     assert len(delays) == 20, f"only got {len(delays)} measurements"
 
-    # All delays must be 2 or 3 (enc_int=1 ± sigma-delta carry)
-    unexpected = [d for d in delays if d not in (2, 3)]
+    # All delays must be 1 or 2 (enc_int=1 +/- sigma-delta carry)
+    unexpected = [d for d in delays if d not in (1, 2)]
     assert not unexpected, f"unexpected delay values: {unexpected}"
 
     # sigma-delta with frac=128 gives carry=1 roughly half the time
+    d1_count = delays.count(1)
     d2_count = delays.count(2)
-    d3_count = delays.count(3)
+    assert 5 <= d1_count <= 15, f"expected ~10 d=1 values (got {d1_count}): {delays}"
     assert 5 <= d2_count <= 15, f"expected ~10 d=2 values (got {d2_count}): {delays}"
-    assert 5 <= d3_count <= 15, f"expected ~10 d=3 values (got {d3_count}): {delays}"
 
     dut._log.info("test_encoder_sigma_delta: PASS")
+
+
+# ── Test 9: Sigma-delta dithering produces no stutter/blip ─────────────────
+
+@cocotb.test()
+async def test_sigma_delta_no_stutter(dut):
+    """Sigma-delta dithering near zero phase produces one full-width ch1 pulse per ch0 period."""
+    dut._log.info("test_sigma_delta_no_stutter: start")
+    clock = Clock(dut.clk, 20, units="ns")
+    cocotb.start_soon(clock.start())
+    await reset_dut(dut)
+
+    on, off = 100, 100  # period = 200
+    period = on + off
+    await set_ch0(dut.clk, dut.uio_in, on, off)
+    await set_phase_offset(dut.clk, dut.uio_in, 0)
+    await set_enc_step(dut.clk, dut.uio_in, 1)  # finest resolution
+
+    # 1 CCW click: enc_phase_fp=-1 -> enc_int=-1, enc_frac=255
+    # sigma-delta carry=1 most periods (total_phase=0, actual_delay=0)
+    # and carry=0 occasionally (total_phase=-1, actual_delay=period-1)
+    _enc_idx[0] = 0
+    await _set_enc_ab(dut, _ENC_STATES[0])
+    await encoder_steps(dut, -1)
+    await ClockCycles(dut.clk, 20)
+
+    n_periods = 20
+    ch0_edges = 0
+    prev_ch0 = 0
+    pulse_widths = []
+    width = 0
+    in_pulse = False
+    for _ in range(n_periods * period):
+        await RisingEdge(dut.clk)
+        val = int(dut.uo_out.value)
+        c0 = val & 1
+        c1 = (val >> 1) & 1
+
+        if c0 == 1 and prev_ch0 == 0:
+            ch0_edges += 1
+
+        if c1 == 1:
+            width += 1
+            in_pulse = True
+        elif in_pulse:
+            pulse_widths.append(width)
+            width = 0
+            in_pulse = False
+
+        prev_ch0 = c0
+    if in_pulse:
+        pulse_widths.append(width)
+
+    dut._log.info(f"ch1 pulse widths: {pulse_widths}")
+    bad = [w for w in pulse_widths if w != on]
+    assert not bad, f"ch1 pulses should all be {on} cycles wide, got {pulse_widths}"
+    assert abs(len(pulse_widths) - ch0_edges) <= 1, \
+        f"ch0_edges={ch0_edges}, ch1 pulse count={len(pulse_widths)}"
+
+    dut._log.info("test_sigma_delta_no_stutter: PASS")
