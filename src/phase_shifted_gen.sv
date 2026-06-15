@@ -46,11 +46,23 @@ module phase_shifted_gen (
     localparam signed [15:0] ENC_MAX =  16'sd32512;  // +127 * 256
     localparam signed [15:0] ENC_MIN = -16'sd32512;
 
+    // Sign-extended to 17 bits for the clamp comparisons below. Note: a
+    // concatenation like {ENC_MAX[15], ENC_MAX} is always *unsigned* in
+    // Verilog, even when assigned to a signed type's RHS context, so an
+    // inline concatenation in a comparison would force an unsigned
+    // comparison. Routing through these signed wires first avoids that trap.
+    wire signed [16:0] enc_max_ext = {ENC_MAX[15], ENC_MAX};
+    wire signed [16:0] enc_min_ext = {ENC_MIN[15], ENC_MIN};
+
     reg  signed [15:0] enc_phase_fp;
     wire signed [15:0] enc_step_s   = {8'b0, enc_step};
     wire signed [15:0] enc_step_eff = enc_btn ? (enc_step_s <<< 3) : enc_step_s;
-    wire signed [15:0] enc_next_up  = enc_phase_fp + enc_step_eff;
-    wire signed [15:0] enc_next_dn  = enc_phase_fp - enc_step_eff;
+    // enc_phase_fp (+/-32512) +/- enc_step_eff (0..2040) can reach +/-34552,
+    // which overflows 16-bit signed (+/-32768) before clamping. Widen to 17
+    // bits so the ENC_MAX/ENC_MIN clamp below always sees the true,
+    // unwrapped sum/difference.
+    wire signed [16:0] enc_next_up  = {enc_phase_fp[15], enc_phase_fp} + {enc_step_eff[15], enc_step_eff};
+    wire signed [16:0] enc_next_dn  = {enc_phase_fp[15], enc_phase_fp} - {enc_step_eff[15], enc_step_eff};
 
     wire signed  [7:0] enc_int  = enc_phase_fp[15:8];
     wire         [7:0] enc_frac = enc_phase_fp[7:0];
@@ -82,9 +94,9 @@ module phase_shifted_gen (
             out          <= 1'b0;
         end else begin
             if (enc_up) begin
-                enc_phase_fp <= (enc_next_up > ENC_MAX) ? ENC_MAX : enc_next_up;
+                enc_phase_fp <= (enc_next_up > enc_max_ext) ? ENC_MAX : enc_next_up[15:0];
             end else if (enc_dn) begin
-                enc_phase_fp <= (enc_next_dn < ENC_MIN) ? ENC_MIN : enc_next_dn;
+                enc_phase_fp <= (enc_next_dn < enc_min_ext) ? ENC_MIN : enc_next_dn[15:0];
             end
 
             if (period_start) begin

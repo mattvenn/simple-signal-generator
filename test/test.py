@@ -641,3 +641,45 @@ async def test_encoder_button_fast_scan(dut):
     assert d3 == 3, f"after release + 8 clicks @ 1x: expected d=3, got {d3}"
 
     dut._log.info("test_encoder_button_fast_scan: PASS")
+
+
+# ── Test 11: Fast-scan button clamps at ENC_MAX instead of wrapping ────────
+
+@cocotb.test()
+async def test_encoder_fast_scan_clamp_no_wrap(dut):
+    """Holding the fast-scan button near ENC_MAX clamps instead of wrapping
+    to a large negative delay."""
+    dut._log.info("test_encoder_fast_scan_clamp_no_wrap: start")
+    clock = Clock(dut.clk, 20, units="ns")
+    cocotb.start_soon(clock.start())
+    await reset_dut(dut)
+
+    on, off = 100, 100   # period=200, large enough that actual_delay=127 doesn't wrap
+    period = on + off
+    await set_ch0(dut.clk, dut.uio_in, on, off)
+    await set_phase_offset(dut.clk, dut.uio_in, 0)
+    # enc_step=32 -> 8x = 256 = 1.0 cycle exactly (frac=0, no dithering).
+    # ENC_MAX = 32512 = 127 * 256, so 127 fast (8x) clicks land exactly at
+    # ENC_MAX with enc_int=127, enc_frac=0.
+    await set_enc_step(dut.clk, dut.uio_in, 32)
+    await ClockCycles(dut.clk, 20)
+
+    _enc_idx[0] = 0
+    await _set_enc_ab(dut, _ENC_STATES[0])
+    await set_enc_btn(dut, True)
+    await encoder_steps(dut, +127)
+    await ClockCycles(dut.clk, 10)
+
+    # enc_phase_fp == ENC_MAX (32512) -> enc_int=127, frac=0 -> d=127
+    d_at_max = await measure_ch1_delay(dut, period)
+    assert d_at_max == 127, f"at ENC_MAX: expected d=127, got {d_at_max}"
+
+    # One more fast click would push enc_phase_fp to 32768, which overflows
+    # 16-bit signed (max 32767). It must clamp at ENC_MAX (d stays 127), not
+    # wrap to -32768 (which would give a very different d).
+    await encoder_steps(dut, +1)
+    await ClockCycles(dut.clk, 10)
+    d_clamped = await measure_ch1_delay(dut, period)
+    assert d_clamped == 127, f"past ENC_MAX: expected clamp at d=127, got {d_clamped}"
+
+    dut._log.info("test_encoder_fast_scan_clamp_no_wrap: PASS")
