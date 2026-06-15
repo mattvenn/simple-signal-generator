@@ -10,7 +10,9 @@
  * spi_offset: signed 16-bit static offset set via SPI (registers 4-5).
  *
  * enc_phase_fp: Q8 signed 16-bit fixed-point, range +/-127 cycles.
- *   Updated by enc_up/enc_dn in steps of enc_step/256 cycles per click.
+ *   Updated by enc_up/enc_dn in steps of enc_step/256 cycles per click
+ *   (8x that -- enc_step*8/256 cycles per click -- while enc_btn is held,
+ *   for fast scanning across the phase range).
  *
  * sigma_delta_carry: 0 or 1, averages to enc_frac/256 per period.
  *
@@ -32,6 +34,7 @@ module phase_shifted_gen (
     input  wire        [7:0]  enc_step,   // Q8 step per encoder click (1/256 cycle per unit)
     input  wire               enc_up,
     input  wire               enc_dn,
+    input  wire               enc_btn,      // fast-scan: 1 while held, multiplies enc_step by 8x
     input  wire        [15:0] count,        // shared phase counter (0..period-1)
     input  wire               period_start, // one cycle per period, when count==0
     output reg                out
@@ -44,9 +47,10 @@ module phase_shifted_gen (
     localparam signed [15:0] ENC_MIN = -16'sd32512;
 
     reg  signed [15:0] enc_phase_fp;
-    wire signed [15:0] enc_step_s  = {8'b0, enc_step};
-    wire signed [15:0] enc_next_up = enc_phase_fp + enc_step_s;
-    wire signed [15:0] enc_next_dn = enc_phase_fp - enc_step_s;
+    wire signed [15:0] enc_step_s   = {8'b0, enc_step};
+    wire signed [15:0] enc_step_eff = enc_btn ? (enc_step_s <<< 3) : enc_step_s;
+    wire signed [15:0] enc_next_up  = enc_phase_fp + enc_step_eff;
+    wire signed [15:0] enc_next_dn  = enc_phase_fp - enc_step_eff;
 
     wire signed  [7:0] enc_int  = enc_phase_fp[15:8];
     wire         [7:0] enc_frac = enc_phase_fp[7:0];

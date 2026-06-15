@@ -37,7 +37,7 @@ module tt_um_mattvenn_signal_generator (
     // Synchronise SPI inputs and mode bits (2-stage)
     localparam SYNC_STAGES = 2;
     wire spi_cs_n_sync, spi_clk_sync, spi_mosi_sync, cpol_sync, cpha_sync;
-    wire enc_a_sync, enc_b_sync, enc_up, enc_dn;
+    wire enc_a_sync, enc_b_sync, enc_btn_sync, enc_up, enc_dn;
 
     synchronizer #(.STAGES(SYNC_STAGES), .WIDTH(1)) sync_cs_n  (.rstb(rst_n), .clk(clk), .ena(ena), .data_in(uio_in[4]), .data_out(spi_cs_n_sync));
     synchronizer #(.STAGES(SYNC_STAGES), .WIDTH(1)) sync_clk   (.rstb(rst_n), .clk(clk), .ena(ena), .data_in(uio_in[5]), .data_out(spi_clk_sync));
@@ -46,6 +46,7 @@ module tt_um_mattvenn_signal_generator (
     synchronizer #(.STAGES(SYNC_STAGES), .WIDTH(1)) sync_cpha  (.rstb(rst_n), .clk(clk), .ena(ena), .data_in(ui_in[1]),  .data_out(cpha_sync));
     synchronizer #(.STAGES(SYNC_STAGES), .WIDTH(1)) sync_enc_a (.rstb(rst_n), .clk(clk), .ena(ena), .data_in(ui_in[4]),  .data_out(enc_a_sync));
     synchronizer #(.STAGES(SYNC_STAGES), .WIDTH(1)) sync_enc_b (.rstb(rst_n), .clk(clk), .ena(ena), .data_in(ui_in[5]),  .data_out(enc_b_sync));
+    synchronizer #(.STAGES(SYNC_STAGES), .WIDTH(1)) sync_enc_btn (.rstb(rst_n), .clk(clk), .ena(ena), .data_in(ui_in[2]), .data_out(enc_btn_sync));
 
     spi_wrapper #(
         .NUM_CFG   (NUM_CFG),
@@ -114,6 +115,7 @@ module tt_um_mattvenn_signal_generator (
         .enc_step    (ch1_enc_step),
         .enc_up      (enc_up),
         .enc_dn      (enc_dn),
+        .enc_btn     (enc_btn_sync),
         .count       (phase_count),
         .period_start(period_start),
         .out         (uo_out[1])
