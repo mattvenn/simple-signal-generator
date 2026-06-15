@@ -382,6 +382,17 @@ async def encoder_steps(dut, n):
         await _set_enc_ab(dut, _ENC_STATES[_enc_idx[0]])
 
 
+async def set_enc_btn(dut, pressed):
+    """Drive ui_in[2] (encoder button) and wait for the synchronizer to settle."""
+    ui = int(dut.ui_in.value)
+    if pressed:
+        ui |= (1 << 2)
+    else:
+        ui &= ~(1 << 2)
+    dut.ui_in.value = ui
+    await ClockCycles(dut.clk, 5)
+
+
 # ── Test 7: Encoder integer-cycle phase control ──────────────────────────────
 
 @cocotb.test()
@@ -571,3 +582,62 @@ async def test_sigma_delta_no_stutter(dut):
         f"ch0_edges={ch0_edges}, ch1 pulse count={len(pulse_widths)}"
 
     dut._log.info("test_sigma_delta_no_stutter: PASS")
+
+
+# ── Test 10: Encoder button multiplies enc_step by 8x while held ───────────
+
+@cocotb.test()
+async def test_encoder_button_fast_scan(dut):
+    """Holding ui_in[2] multiplies the encoder's per-click phase step by 8x."""
+    dut._log.info("test_encoder_button_fast_scan: start")
+    clock = Clock(dut.clk, 20, units="ns")
+    cocotb.start_soon(clock.start())
+    await reset_dut(dut)
+
+    on, off = 20, 80   # period=100
+    period = on + off
+    await set_ch0(dut.clk, dut.uio_in, on, off)
+    await set_phase_offset(dut.clk, dut.uio_in, 0)
+    # enc_step=32 -> 0.125 cycle/click (1x); 8x = 1.0 cycle/click exactly,
+    # so every step below lands on an integer cycle with enc_frac=0 --
+    # no sigma-delta dithering, fully deterministic.
+    await set_enc_step(dut.clk, dut.uio_in, 32)
+    await ClockCycles(dut.clk, 20)
+
+    # Reset encoder to known state 00, button released
+    _enc_idx[0] = 0
+    await _set_enc_ab(dut, _ENC_STATES[0])
+    await set_enc_btn(dut, False)
+    await ClockCycles(dut.clk, 10)
+
+    # Baseline: enc_phase_fp=0 -> actual_delay=0 -> d=0
+    d0 = await measure_ch1_delay(dut, period)
+    assert d0 == 0, f"baseline: expected d=0, got {d0}"
+
+    # 8 clicks @ 1x (button released): enc_phase_fp += 8*32 = 256 (1.0 cycle,
+    # frac=0) -> actual_delay=1 -> d=1
+    await encoder_steps(dut, +8)
+    await ClockCycles(dut.clk, 10)
+    d1 = await measure_ch1_delay(dut, period)
+    assert d1 == 1, f"after 8 clicks @ 1x: expected d=1, got {d1}"
+
+    # 1 click @ 8x (button held): enc_phase_fp += 1*32*8 = 256 (another 1.0
+    # cycle, frac=0) -> actual_delay=2 -> d=2. Demonstrates 1 click @ 8x ==
+    # 8 clicks @ 1x.
+    await set_enc_btn(dut, True)
+    await encoder_steps(dut, +1)
+    await ClockCycles(dut.clk, 10)
+    d2 = await measure_ch1_delay(dut, period)
+    assert d2 == 2, f"after 1 click @ 8x (button held): expected d=2, got {d2}"
+
+    # Release the button: 8 more clicks @ 1x -> enc_phase_fp += 256 ->
+    # actual_delay=3 -> d=3. If the multiplier had remained stuck at 8x,
+    # this would instead add 8*256=2048 (enc_phase_fp=2304, actual_delay=9),
+    # so this confirms the multiplier reverts immediately on release.
+    await set_enc_btn(dut, False)
+    await encoder_steps(dut, +8)
+    await ClockCycles(dut.clk, 10)
+    d3 = await measure_ch1_delay(dut, period)
+    assert d3 == 3, f"after release + 8 clicks @ 1x: expected d=3, got {d3}"
+
+    dut._log.info("test_encoder_button_fast_scan: PASS")
