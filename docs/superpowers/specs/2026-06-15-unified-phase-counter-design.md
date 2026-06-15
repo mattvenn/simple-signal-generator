@@ -144,11 +144,19 @@ All fall out of the comparator formulas with no special-casing, since
 This matches the documented behavior ("Setting `on_count = 0` silences both
 channels"; `off_count = 0` → ch0 stays HIGH).
 
-**Reset behavior shifts by one cycle**: `count` starts at 0, so if
-`on_count > 0`, `ch0_out` is HIGH from cycle 0 of normal operation (the old
-FSM had a 1-cycle LOW "IDLE" period after reset before going HIGH). Frequency,
-duty cycle, and the ch0/ch1 phase relationship are unaffected — only the
-reset-relative absolute phase shifts by 1 cycle. Tests are adjusted for this.
+**Reset behavior is unchanged**: `count` starts at 0 and `out` is itself
+registered, so `ch0_out` follows exactly the same cycle-by-cycle sequence
+after reset as the old FSM (`out_N = ((N-1) mod period) < on_count` for
+`N >= 1`, `out_0 = 0` — identical to the old IDLE→HIGH→LOW sequence).
+
+**ch1's phase definition changes by one cycle**: the old FSM's
+`ch0_rising`-triggered, two-state (`DELAY`→`ON`) transition added one extra
+cycle of latency, so `actual_delay=N` meant ch1's edge appeared `N+1` cycles
+after ch0's. The new comparator has no such pipeline stage: `actual_delay=N`
+means ch1's transition occurs exactly `N` counter-ticks after ch0's
+(`ch1_out_N = ch0_out_{N-actual_delay}`, indices mod period). This is a more
+direct/intuitive definition and the redesign adopts it; tests that measure
+this delay are updated accordingly (see Testing plan).
 
 ## Config-change behavior
 
@@ -173,26 +181,35 @@ introduced or worsened by this redesign. Not addressed here.
 
 ## Testing plan
 
+- **`measure_ch1_delay` helper rewrite**: change from "is ch1 high N cycles
+  after ch0's rise" (which baked in the old FSM's +1 latency) to "cycles from
+  ch0's rising edge to ch1's next rising edge" — directly measures
+  `actual_delay` under the new definition, including wrap (lead) cases.
+
 - **Existing tests 1-8** (`test_spi_registers`, `test_frequency_generation`,
   `test_ch1_inphase`, `test_spi_phase_offset`, `test_channel_silence`,
   `test_encoder_integer_phase`, `test_encoder_sigma_delta`, etc.): re-verify.
-  Most pass unchanged since frequency/duty-cycle/in-phase/silence/encoder
-  accumulation are preserved by construction. `test_frequency_generation` may
-  need a tolerance/offset tweak for the 1-cycle reset shift.
+  Most pass unchanged. `test_spi_phase_offset` and `test_encoder_integer_phase`
+  use `measure_ch1_delay` and need their expected values updated from
+  `offset+1` to `offset` (per the one-cycle phase-definition change above).
+  `test_encoder_sigma_delta` updates its expected delay set from `{2,3}` to
+  `{1,2}` for the same reason.
 
 - **Replace `test_spi_phase_offset_boundary`** (tests the now-removed clamp
   boundary) with **`test_phase_full_range`**: asymmetric `on=20, off=80`
   (period=100). Sweep `spi_offset` across values spanning the whole period,
   including the old clamp boundary and the lead/wrap region: `-50, -1, 0, 1,
-  50, 79, 80, 99`. For each, run several periods and assert `ch1_edges ==
-  ch0_edges` and that ch1's rising edge lands at `(ch0_rise + actual_delay) mod
-  period`. This is the regression test for **bug #1**.
+  50, 79, 80, 99`. For each, assert `measure_ch1_delay == offset_cycles %
+  period`, and over several periods assert `ch1_edges == ch0_edges`. This is
+  the regression test for **bug #1**.
 
 - **New `test_sigma_delta_no_stutter`**: `on=off=100`, `spi_offset=0`,
-  `enc_step=1`, a couple of `enc_dn` clicks (reproduces the live config that
-  triggered **bug #2** — dithering near zero phase). Run ~20 periods; for each
-  assert exactly one rising→falling ch1 pulse per ch0 period, in the correct
-  order, with `ch1_edges == ch0_edges` overall.
+  `enc_step=1`, one `enc_dn` click (reproduces the live config that triggered
+  **bug #2** — dithering between `actual_delay=0` and `actual_delay=period-1`
+  near zero phase). Run ~20 periods and measure every ch1 high-pulse's width;
+  assert each equals `on_count` exactly (a stutter/blip would split one pulse
+  into two non-`on_count`-width pieces) and that the pulse count matches
+  `ch0_edges`.
 
 ## Documentation
 
