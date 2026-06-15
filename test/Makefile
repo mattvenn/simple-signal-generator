@@ -7,6 +7,7 @@ WAVES ?= 1
 TOPLEVEL_LANG ?= verilog
 SRC_DIR = $(PWD)/../src
 PROJECT_SOURCES = project.v \
+                  phase_counter.sv \
                   sq_wave_gen.sv \
                   phase_shifted_gen.sv \
                   enc_decoder.sv \

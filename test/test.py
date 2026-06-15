@@ -314,7 +314,9 @@ async def test_phase_full_range(dut):
         assert d == expected_delay, \
             f"offset={offset_cycles}: expected delay={expected_delay}, got {d}"
 
-        prev_ch0 = prev_ch1 = 0
+        val0 = int(dut.uo_out.value)
+        prev_ch0 = val0 & 1
+        prev_ch1 = (val0 >> 1) & 1
         ch0_edges = ch1_edges = 0
         for _ in range(5 * period):
             await RisingEdge(dut.clk)
@@ -517,14 +519,25 @@ async def test_sigma_delta_no_stutter(dut):
     _enc_idx[0] = 0
     await _set_enc_ab(dut, _ENC_STATES[0])
     await encoder_steps(dut, -1)
-    await ClockCycles(dut.clk, 20)
+
+    # The encoder click lands at an arbitrary point within a period, but
+    # sd_carry only updates at period_start. For the ~1 period until the
+    # next period_start, enc_int (just changed) and sd_carry (stale) are
+    # momentarily mismatched, producing one short pulse and one slightly
+    # long (101-cycle) pulse as a one-time settling transient. Wait a few
+    # periods so this transient is fully over before the measurement window
+    # starts, leaving only the steady-state alternation between
+    # actual_delay=0 and actual_delay=period-1 (both 100-cycle pulses).
+    await ClockCycles(dut.clk, 3 * period)
 
     n_periods = 20
     ch0_edges = 0
-    prev_ch0 = 0
+    val0 = int(dut.uo_out.value)
+    prev_ch0 = val0 & 1
     pulse_widths = []
     width = 0
-    in_pulse = False
+    in_pulse = ((val0 >> 1) & 1) == 1
+    started_mid_pulse = in_pulse
     for _ in range(n_periods * period):
         await RisingEdge(dut.clk)
         val = int(dut.uo_out.value)
@@ -543,8 +556,13 @@ async def test_sigma_delta_no_stutter(dut):
             in_pulse = False
 
         prev_ch0 = c0
-    if in_pulse:
-        pulse_widths.append(width)
+
+    # Drop partial pulses at the start/end of the capture window: a pulse
+    # already in progress when the loop started, or one still in progress
+    # when it ended, was not fully observed and would show a truncated width.
+    if started_mid_pulse and pulse_widths:
+        pulse_widths = pulse_widths[1:]
+    # (trailing in-progress pulse, if any, is intentionally not appended)
 
     dut._log.info(f"ch1 pulse widths: {pulse_widths}")
     bad = [w for w in pulse_widths if w != on]

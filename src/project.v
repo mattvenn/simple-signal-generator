@@ -74,17 +74,30 @@ module tt_um_mattvenn_signal_generator (
         .dn    (enc_dn)
     );
 
-    // Channel 0: independent square wave generator
+    // Shared free-running phase counter (drives both channels)
     // config regs 0-3: on_count[15:8], on_count[7:0], off_count[15:8], off_count[7:0]
-    wire ch0_out;
-    sq_wave_gen ch0_inst (
-        .clk      (clk),
-        .rst_n    (rst_n),
-        .on_count ({config_regs[7 -: 8], config_regs[15 -: 8]}),
-        .off_count({config_regs[23 -: 8], config_regs[31 -: 8]}),
-        .out      (ch0_out)
+    wire [15:0] on_count  = {config_regs[7  -: 8], config_regs[15 -: 8]};
+    wire [15:0] off_count = {config_regs[23 -: 8], config_regs[31 -: 8]};
+    wire [15:0] phase_count;
+    wire        period_start;
+
+    phase_counter phase_counter_i (
+        .clk         (clk),
+        .rst_n       (rst_n),
+        .on_count    (on_count),
+        .off_count   (off_count),
+        .count       (phase_count),
+        .period_start(period_start)
     );
-    assign uo_out[0] = ch0_out;
+
+    // Channel 0: square wave generator
+    sq_wave_gen ch0_inst (
+        .clk     (clk),
+        .rst_n   (rst_n),
+        .on_count(on_count),
+        .count   (phase_count),
+        .out     (uo_out[0])
+    );
 
     // Channel 1: phase-shifted replica of ch0
     // config regs 4-5:  spi_offset[15:0] (signed; static phase offset in clock cycles)
@@ -93,16 +106,17 @@ module tt_um_mattvenn_signal_generator (
     wire  [7:0] ch1_enc_step   = config_regs[55 -: 8];
 
     phase_shifted_gen ch1_inst (
-        .clk       (clk),
-        .rst_n     (rst_n),
-        .on_count  ({config_regs[7 -: 8], config_regs[15 -: 8]}),
-        .off_count ({config_regs[23 -: 8], config_regs[31 -: 8]}),
-        .spi_offset(ch1_spi_offset),
-        .enc_step  (ch1_enc_step),
-        .enc_up    (enc_up),
-        .enc_dn    (enc_dn),
-        .ch0_out   (ch0_out),
-        .out       (uo_out[1])
+        .clk         (clk),
+        .rst_n       (rst_n),
+        .on_count    (on_count),
+        .off_count   (off_count),
+        .spi_offset  (ch1_spi_offset),
+        .enc_step    (ch1_enc_step),
+        .enc_up      (enc_up),
+        .enc_dn      (enc_dn),
+        .count       (phase_count),
+        .period_start(period_start),
+        .out         (uo_out[1])
     );
 
 endmodule
