@@ -38,6 +38,10 @@ Examples:
 - `enc_step = 128` → 0.5 cycles/click
 - `enc_step = 255` → ~1 cycle/click
 
+**Encoder button** (`ui[2]`, PmodEnc's `SWT` pin, active-high): while held,
+multiplies `enc_step` by 8x for fast scanning across the phase range.
+Releasing it reverts the very next click to the normal step size.
+
 ch1's delay (`spi_offset + enc_int + sigma_delta_carry`) covers the full
 `[0, period)` range with no clamping — it wraps modulo the period, so ch1's
 pulse can land anywhere relative to ch0's, including spanning the period
@@ -124,7 +128,9 @@ python scripts/run_freq.py 1000 --offset 500 --enc-step 64
 
 Connect a [Digilent PModEnc](https://digilent.com/reference/pmod/pmodenc/start)
 to the **bottom row** of the input Pmod connector on the Tiny Tapeout demo
-board. This maps the encoder A/B outputs to `ui[4]` and `ui[5]`.
+board. This maps the encoder A/B outputs to `ui[4]` and `ui[5]`, and the
+encoder's pushbutton (`SWT`) to `ui[2]` (fast-scan, see "Phase control"
+above).
 
 ## Testing
 
@@ -144,6 +150,8 @@ cd test && make
 | `test_channel_silence` | on_count=0 holds both outputs LOW |
 | `test_encoder_integer_phase` | Encoder clicks accumulate to integer cycle offset |
 | `test_encoder_sigma_delta` | Fractional enc_step dithers delay via sigma-delta |
+| `test_encoder_button_fast_scan` | Holding the encoder button multiplies enc_step by 8x |
+| `test_encoder_fast_scan_clamp_no_wrap` | Holding the button at ENC_MAX/ENC_MIN clamps correctly instead of wrapping (16->17-bit overflow fix) |
 
 ### Hardware-in-the-loop (HIL)
 
@@ -153,6 +161,6 @@ Keysight oscilloscope and the RP2350. Probes on `uo[0]` (CH1) and `uo[1]` (CH2).
 ## External hardware
 
 - RP2350 (or any SPI master) connected to `uio[6:4]` (MOSI, CLK, CS_N) and `uio[3]` (MISO)
-- [Digilent PModEnc](https://digilent.com/reference/pmod/pmodenc/start) on the bottom row of the input Pmod connector (→ `ui[4]`=A, `ui[5]`=B)
+- [Digilent PModEnc](https://digilent.com/reference/pmod/pmodenc/start) on the bottom row of the input Pmod connector (→ `ui[4]`=A, `ui[5]`=B, `ui[2]`=button/SWT for 8x fast-scan)
 - Oscilloscope on `uo[1:0]`
 - SR latch with S=`uo[0]` and R=`uo[1]` (or vice versa) for metastability experiments

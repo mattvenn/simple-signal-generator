@@ -35,7 +35,7 @@ pinout:
   # Inputs
   ui[0]: "SPI CPOL"
   ui[1]: "SPI CPHA"
-  ui[2]: ""
+  ui[2]: "Encoder button (hold for 8x fast-scan)"
   ui[3]: ""
   ui[4]: "Encoder A"
   ui[5]: "Encoder B"
