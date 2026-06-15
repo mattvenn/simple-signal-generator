@@ -13,7 +13,9 @@
  *
  * sigma_delta_carry: 0 or 1, averages to enc_frac/256 per period.
  *
- * Constraint: |spi_offset + enc_int| < off_count
+ * The resulting delay is clamped to off_count-1 if it would reach or
+ * exceed off_count, since the state machine needs at least one cycle
+ * back in IDLE before the next ch0_rising to avoid missing it.
  */
 
 `default_nettype none
@@ -60,7 +62,13 @@ module phase_shifted_gen (
     wire        [15:0] actual_delay_raw = total_phase[16] ?
         (period + total_phase[15:0]) :
         total_phase[15:0];
-    wire        [15:0] actual_delay     = (actual_delay_raw >= period) ? 16'd0 : actual_delay_raw;
+    wire        [15:0] actual_delay_mod = (actual_delay_raw >= period) ? 16'd0 : actual_delay_raw;
+
+    // The state machine needs to be back in IDLE before the next ch0_rising,
+    // which requires actual_delay < off_count. Clamp to the maximum
+    // reachable value rather than missing the next trigger entirely.
+    wire        [15:0] actual_delay     = (off_count != 16'd0 && actual_delay_mod >= off_count) ?
+        (off_count - 16'd1) : actual_delay_mod;
 
     typedef enum logic [1:0] {
         IDLE  = 2'b00,

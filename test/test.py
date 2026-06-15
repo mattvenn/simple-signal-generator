@@ -294,6 +294,42 @@ async def test_spi_phase_offset(dut):
     dut._log.info("test_spi_phase_offset: PASS")
 
 
+# ── Test 5: SPI phase offset boundary (actual_delay == off_count) ───────────
+
+@cocotb.test()
+async def test_spi_phase_offset_boundary(dut):
+    """spi_offset == off_count must not cause ch1 to miss every other ch0 pulse."""
+    dut._log.info("test_spi_phase_offset_boundary: start")
+    clock = Clock(dut.clk, 20, units="ns")
+    cocotb.start_soon(clock.start())
+    await reset_dut(dut)
+
+    on, off = 20, 80  # period = 100
+    await set_ch0(dut.clk, dut.uio_in, on, off)
+    await set_enc_step(dut.clk, dut.uio_in, 0)  # disable encoder contribution
+    await set_phase_offset(dut.clk, dut.uio_in, off)  # actual_delay == off_count
+    await ClockCycles(dut.clk, 10)
+
+    period = on + off
+    prev_ch0 = prev_ch1 = 0
+    ch0_edges = ch1_edges = 0
+    for _ in range(6 * period):
+        await RisingEdge(dut.clk)
+        val = int(dut.uo_out.value)
+        c0 = val & 1
+        c1 = (val >> 1) & 1
+        if c0 == 1 and prev_ch0 == 0:
+            ch0_edges += 1
+        if c1 == 1 and prev_ch1 == 0:
+            ch1_edges += 1
+        prev_ch0, prev_ch1 = c0, c1
+
+    assert ch1_edges == ch0_edges, \
+        f"ch1 should pulse once per ch0 period, got ch0_edges={ch0_edges}, ch1_edges={ch1_edges}"
+
+    dut._log.info("test_spi_phase_offset_boundary: PASS")
+
+
 # ── Test 6: Channel silence ──────────────────────────────────────────────────
 
 @cocotb.test()

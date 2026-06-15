@@ -38,8 +38,8 @@ Examples:
 - `enc_step = 128` → 0.5 cycles/click
 - `enc_step = 255` → ~1 cycle/click
 
-Constraint: `|spi_offset + enc_int| < off_count` so ch1's pulse fits within
-the period.
+If `|spi_offset + enc_int|` would reach or exceed `off_count`, the delay is
+clamped to `off_count - 1` so ch1's pulse always fits within the period.
 
 ### Frequency formula
 
