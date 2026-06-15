@@ -38,8 +38,14 @@ Examples:
 - `enc_step = 128` → 0.5 cycles/click
 - `enc_step = 255` → ~1 cycle/click
 
-If `|spi_offset + enc_int|` would reach or exceed `off_count`, the delay is
-clamped to `off_count - 1` so ch1's pulse always fits within the period.
+ch1's delay (`spi_offset + enc_int + sigma_delta_carry`) covers the full
+`[0, period)` range with no clamping — it wraps modulo the period, so ch1's
+pulse can land anywhere relative to ch0's, including spanning the period
+boundary. (For very small periods combined with large `spi_offset`/encoder
+values — larger in magnitude than the period — the wrap is computed mod one
+period only, so the resulting delay may not match the mathematical mod for
+`|total_delay| >= period`; this is a pre-existing edge case unrelated to
+normal use.)
 
 ### Frequency formula
 
