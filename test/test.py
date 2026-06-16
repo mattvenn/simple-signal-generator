@@ -383,12 +383,12 @@ async def encoder_steps(dut, n):
 
 
 async def set_enc_btn(dut, pressed):
-    """Drive ui_in[2] (encoder button) and wait for the synchronizer to settle."""
+    """Drive ui_in[6] (encoder button) and wait for the synchronizer to settle."""
     ui = int(dut.ui_in.value)
     if pressed:
-        ui |= (1 << 2)
+        ui |= (1 << 6)
     else:
-        ui &= ~(1 << 2)
+        ui &= ~(1 << 6)
     dut.ui_in.value = ui
     await ClockCycles(dut.clk, 5)
 
