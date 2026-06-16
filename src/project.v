@@ -29,7 +29,7 @@ module tt_um_mattvenn_signal_generator (
     assign uio_out = {4'b0, spi_miso, 3'b0};
 
     // CPOL=ui[0], CPHA=ui[1]; unused uo_out bits
-    assign uo_out[7:2] = 6'b0;
+    assign uo_out[7:3] = 6'b0;
 
     // Status registers unused
     assign status_regs = {(NUM_STATUS*REG_WIDTH){1'b0}};
@@ -38,6 +38,7 @@ module tt_um_mattvenn_signal_generator (
     localparam SYNC_STAGES = 2;
     wire spi_cs_n_sync, spi_clk_sync, spi_mosi_sync, cpol_sync, cpha_sync;
     wire enc_a_sync, enc_b_sync, enc_btn_sync, enc_up, enc_dn;
+    assign uo_out[2] = enc_btn_sync;
 
     synchronizer #(.STAGES(SYNC_STAGES), .WIDTH(1)) sync_cs_n  (.rstb(rst_n), .clk(clk), .ena(ena), .data_in(uio_in[4]), .data_out(spi_cs_n_sync));
     synchronizer #(.STAGES(SYNC_STAGES), .WIDTH(1)) sync_clk   (.rstb(rst_n), .clk(clk), .ena(ena), .data_in(uio_in[5]), .data_out(spi_clk_sync));
@@ -46,7 +47,7 @@ module tt_um_mattvenn_signal_generator (
     synchronizer #(.STAGES(SYNC_STAGES), .WIDTH(1)) sync_cpha  (.rstb(rst_n), .clk(clk), .ena(ena), .data_in(ui_in[1]),  .data_out(cpha_sync));
     synchronizer #(.STAGES(SYNC_STAGES), .WIDTH(1)) sync_enc_a (.rstb(rst_n), .clk(clk), .ena(ena), .data_in(ui_in[4]),  .data_out(enc_a_sync));
     synchronizer #(.STAGES(SYNC_STAGES), .WIDTH(1)) sync_enc_b (.rstb(rst_n), .clk(clk), .ena(ena), .data_in(ui_in[5]),  .data_out(enc_b_sync));
-    synchronizer #(.STAGES(SYNC_STAGES), .WIDTH(1)) sync_enc_btn (.rstb(rst_n), .clk(clk), .ena(ena), .data_in(ui_in[2]), .data_out(enc_btn_sync));
+    synchronizer #(.STAGES(SYNC_STAGES), .WIDTH(1)) sync_enc_btn (.rstb(rst_n), .clk(clk), .ena(ena), .data_in(ui_in[6]), .data_out(enc_btn_sync));
 
     spi_wrapper #(
         .NUM_CFG   (NUM_CFG),
