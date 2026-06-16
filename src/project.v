@@ -47,7 +47,7 @@ module tt_um_mattvenn_signal_generator (
     synchronizer #(.STAGES(SYNC_STAGES), .WIDTH(1)) sync_cpha  (.rstb(rst_n), .clk(clk), .ena(ena), .data_in(ui_in[1]),  .data_out(cpha_sync));
     synchronizer #(.STAGES(SYNC_STAGES), .WIDTH(1)) sync_enc_a (.rstb(rst_n), .clk(clk), .ena(ena), .data_in(ui_in[4]),  .data_out(enc_a_sync));
     synchronizer #(.STAGES(SYNC_STAGES), .WIDTH(1)) sync_enc_b (.rstb(rst_n), .clk(clk), .ena(ena), .data_in(ui_in[5]),  .data_out(enc_b_sync));
-    synchronizer #(.STAGES(SYNC_STAGES), .WIDTH(1)) sync_enc_btn (.rstb(rst_n), .clk(clk), .ena(ena), .data_in(ui_in[6]), .data_out(enc_btn_sync));
+    synchronizer #(.STAGES(SYNC_STAGES), .WIDTH(1)) sync_enc_btn (.rstb(rst_n), .clk(clk), .ena(ena), .data_in(ui_in[2]), .data_out(enc_btn_sync));
 
     spi_wrapper #(
         .NUM_CFG   (NUM_CFG),
@@ -81,15 +81,13 @@ module tt_um_mattvenn_signal_generator (
     wire [15:0] on_count  = {config_regs[7  -: 8], config_regs[15 -: 8]};
     wire [15:0] off_count = {config_regs[23 -: 8], config_regs[31 -: 8]};
     wire [15:0] phase_count;
-    wire        period_start;
 
     phase_counter phase_counter_i (
         .clk         (clk),
         .rst_n       (rst_n),
         .on_count    (on_count),
         .off_count   (off_count),
-        .count       (phase_count),
-        .period_start(period_start)
+        .count       (phase_count)
     );
 
     // Channel 0: square wave generator
@@ -118,7 +116,6 @@ module tt_um_mattvenn_signal_generator (
         .enc_dn      (enc_dn),
         .enc_btn     (enc_btn_sync),
         .count       (phase_count),
-        .period_start(period_start),
         .out         (uo_out[1])
     );
 

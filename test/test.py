@@ -532,12 +532,12 @@ async def test_sigma_delta_no_stutter(dut):
     await encoder_steps(dut, -1)
 
     # The encoder click lands at an arbitrary point within a period, but
-    # sd_carry only updates at period_start. For the ~1 period until the
-    # next period_start, enc_int (just changed) and sd_carry (stale) are
-    # momentarily mismatched, producing one short pulse and one slightly
-    # long (101-cycle) pulse as a one-time settling transient. Wait a few
-    # periods so this transient is fully over before the measurement window
-    # starts, leaving only the steady-state alternation between
+    # sd_carry only updates at period_end (count == period-1). For the ~1
+    # period until the next period_end, enc_int (just changed) and sd_carry
+    # (stale) are momentarily mismatched, producing one short pulse and one
+    # slightly long (101-cycle) pulse as a one-time settling transient. Wait
+    # a few periods so this transient is fully over before the measurement
+    # window starts, leaving only the steady-state alternation between
     # actual_delay=0 and actual_delay=period-1 (both 100-cycle pulses).
     await ClockCycles(dut.clk, 3 * period)
 

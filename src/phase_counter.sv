@@ -5,9 +5,7 @@
  * Shared free-running phase counter.
  *
  * count cycles 0 .. period-1 .. 0 .. where period = on_count + off_count.
- * period_start is high for one cycle when count == 0, marking the start
- * of each period. If period == 0 (on_count == off_count == 0), count
- * stays at 0 (silence).
+ * If period == 0 (on_count == off_count == 0), count stays at 0 (silence).
  */
 
 `default_nettype none
@@ -17,8 +15,7 @@ module phase_counter (
     input  wire        rst_n,
     input  wire [15:0] on_count,
     input  wire [15:0] off_count,
-    output reg  [15:0] count,
-    output wire        period_start
+    output reg  [15:0] count
 );
 
     wire [15:0] period = on_count + off_count;
@@ -34,7 +31,5 @@ module phase_counter (
             count <= count + 16'd1;
         end
     end
-
-    assign period_start = (count == 16'd0);
 
 endmodule
