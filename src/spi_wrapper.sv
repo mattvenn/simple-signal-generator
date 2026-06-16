@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-module spi_wrapper #(parameter int NUM_CFG = 8, parameter int NUM_STATUS = 8, parameter int REG_WIDTH = 8) (rstb, clk, ena, mode, spi_cs_n, spi_clk, spi_mosi, spi_miso, config_regs, status_regs);
+module spi_wrapper #(parameter int NUM_CFG = 8, parameter int NUM_STATUS = 8, parameter int REG_WIDTH = 8,
+                     parameter logic [NUM_CFG*REG_WIDTH-1:0] RESET_VAL = '0) (rstb, clk, ena, mode, spi_cs_n, spi_clk, spi_mosi, spi_miso, config_regs, status_regs);
 
   input logic rstb;
   input logic clk;
@@ -60,7 +61,7 @@ module spi_wrapper #(parameter int NUM_CFG = 8, parameter int NUM_STATUS = 8, pa
   always_ff @(posedge clk or negedge rstb) begin
     if (!rstb) begin
       for (i = 0; i < NUM_CFG; i++) begin
-        config_mem[i] <= 0;
+        config_mem[i] <= RESET_VAL[i*REG_WIDTH +: REG_WIDTH];
       end
     end else begin
       if (ena == 1'b1) begin

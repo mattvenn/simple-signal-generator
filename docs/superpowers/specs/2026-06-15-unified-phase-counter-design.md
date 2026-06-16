@@ -48,22 +48,22 @@ module phase_counter (
     input  wire        rst_n,
     input  wire [15:0] on_count,
     input  wire [15:0] off_count,
-    output reg  [15:0] count,
-    output wire        period_start
+    output reg  [15:0] count
 );
     wire [15:0] period = on_count + off_count;
 
     always_ff @(posedge clk or negedge rst_n) begin
-        if (!rst_n)                   count <= 16'd0;
-        else if (period == 16'd0)     count <= 16'd0;          // silence
-        else if (count + 16'd1 >= period) count <= 16'd0;       // wrap (handles
-                                                                  // period shrinking too)
-        else                           count <= count + 16'd1;
+        if (!rst_n)                       count <= 16'd0;
+        else if (period == 16'd0)         count <= 16'd0;  // silence
+        else if (count + 16'd1 >= period) count <= 16'd0;  // wrap
+        else                              count <= count + 16'd1;
     end
-
-    assign period_start = (count == 16'd0);
 endmodule
 ```
+
+Note: `period_start` was removed when the timing-fix pipeline stage was added (see
+"Timing fix" section below) — `phase_shifted_gen` now derives its own `period_end`
+signal locally.
 
 ### `src/sq_wave_gen.sv` (rewrite, ch0)
 
@@ -108,22 +108,22 @@ end
 ```
 
 The sigma-delta accumulator update (currently triggered on `ch0_rising`) is
-instead triggered on `period_start` (one cycle per period, independent of
-`ch0_out`'s polarity — functionally equivalent but doesn't require `ch0_out`/
-`ch0_prev` as inputs at all).
+instead triggered on `period_end` (`count + 1 >= period`, one cycle before the
+counter wraps — functionally equivalent but doesn't require `ch0_out`/`ch0_prev`
+as inputs at all, and places `sd_carry` one cycle early so the pipeline stage
+below can register `actual_delay` in time).
 
-Module inputs change: drop `ch0_out`; add `count` and `period_start` (driven
-by the shared `phase_counter`); keep `on_count`, `off_count` (still needed for
-`period` and the `actual_delay` formula), `spi_offset`, `enc_step`, `enc_up`,
-`enc_dn`.
+Module inputs change: drop `ch0_out`; add `count` (driven by the shared
+`phase_counter`); keep `on_count`, `off_count` (still needed for `period` and
+the `actual_delay` formula), `spi_offset`, `enc_step`, `enc_up`, `enc_dn`.
 
 ### `src/project.v`
 
 Instantiate `phase_counter` once, feeding `on_count`/`off_count` (from config
-regs 0-3, same as today). Wire its `count`/`period_start` outputs to both
-`sq_wave_gen` (ch0) and `phase_shifted_gen` (ch1). Remove the `ch0_out` →
-`phase_shifted_gen.ch0_out` connection (ch1 no longer depends on ch0's
-registered output at all — both are independent views of `count`).
+regs 0-3, same as today). Wire its `count` output to both `sq_wave_gen` (ch0)
+and `phase_shifted_gen` (ch1). Remove the `ch0_out` → `phase_shifted_gen.ch0_out`
+connection (ch1 no longer depends on ch0's registered output at all — both are
+independent views of `count`).
 
 ### `test/Makefile`
 
@@ -152,11 +152,15 @@ after reset as the old FSM (`out_N = ((N-1) mod period) < on_count` for
 **ch1's phase definition changes by one cycle**: the old FSM's
 `ch0_rising`-triggered, two-state (`DELAY`→`ON`) transition added one extra
 cycle of latency, so `actual_delay=N` meant ch1's edge appeared `N+1` cycles
-after ch0's. The new comparator has no such pipeline stage: `actual_delay=N`
-means ch1's transition occurs exactly `N` counter-ticks after ch0's
+after ch0's. The new design uses `actual_delay=N` to mean ch1's transition
+occurs exactly `N` counter-ticks after ch0's
 (`ch1_out_N = ch0_out_{N-actual_delay}`, indices mod period). This is a more
 direct/intuitive definition and the redesign adopts it; tests that measure
 this delay are updated accordingly (see Testing plan).
+
+Note: a pipeline stage for `actual_delay` was subsequently added (see "Timing
+fix" section below), but this does not change the phase definition — only the
+cycle on which `out` is registered.
 
 ## Config-change behavior
 
@@ -217,3 +221,29 @@ introduced or worsened by this redesign. Not addressed here.
 reach or exceed `off_count`, the delay is clamped..."). Replace with a note
 that ch1's delay supports the full `[0, period)` range with no clamping, plus
 a short note on the pre-existing small-period/large-offset limitation above.
+
+## Timing fix (post-redesign)
+
+After the ASIC flow revealed a **-1.81 ns setup violation** (worst-case
+**-23.68 ns** at slow corner) on the path
+`enc_phase_fp[9] → total_phase → actual_delay → ch1_phase → out`,
+a pipeline register (`actual_delay_r`) was added to split the combinational
+chain across two cycles:
+
+- **Cycle N**: `enc_phase_fp` / `sd_carry` → `total_phase` → `actual_delay` →
+  registered into `actual_delay_r`
+- **Cycle N+1**: `count` − `actual_delay_r` → `ch1_phase` → `out`
+
+To keep `actual_delay_r` correct at period boundaries, `sd_carry` is now
+updated one cycle **before** the wrap (`period_end`: `count + 1 >= period`)
+rather than at `period_start` (`count == 0`). This way the new `sd_carry`
+propagates through `actual_delay` and into `actual_delay_r` so that by
+`count == 0` of the next period, `actual_delay_r` already holds the correct
+value. `period_start` is removed from `phase_counter.sv`; `phase_shifted_gen`
+derives `period_end` locally.
+
+The phase definition is unchanged: `actual_delay=N` still means
+`ch1_out_N = ch0_out_{N-actual_delay}`. The extra register adds one cycle of
+latency to delay *changes* (e.g. after an encoder click, the new delay takes
+effect one cycle later than before), but the steady-state waveform and all
+nine cocotb tests pass unchanged.

@@ -49,10 +49,26 @@ module tt_um_mattvenn_signal_generator (
     synchronizer #(.STAGES(SYNC_STAGES), .WIDTH(1)) sync_enc_b (.rstb(rst_n), .clk(clk), .ena(ena), .data_in(ui_in[5]),  .data_out(enc_b_sync));
     synchronizer #(.STAGES(SYNC_STAGES), .WIDTH(1)) sync_enc_btn (.rstb(rst_n), .clk(clk), .ena(ena), .data_in(ui_in[2]), .data_out(enc_btn_sync));
 
+    // Default register values on reset:
+    //   regs 0-3: on_count=1000 (0x03E8), off_count=10000 (0x2710)
+    //   regs 4-5: spi_offset=0
+    //   reg  6:   enc_step=1
+    localparam [NUM_CFG*REG_WIDTH-1:0] CFG_RESET_VAL = {
+        8'h00,   // reg 7: unused
+        8'h01,   // reg 6: enc_step = 1
+        8'h00,   // reg 5: spi_offset low  = 0
+        8'h00,   // reg 4: spi_offset high = 0
+        8'h10,   // reg 3: off_count low   = 0x10 (10000 & 0xFF)
+        8'h27,   // reg 2: off_count high  = 0x27 (10000 >> 8)
+        8'hE8,   // reg 1: on_count low    = 0xE8 (1000 & 0xFF)
+        8'h03    // reg 0: on_count high   = 0x03 (1000 >> 8)
+    };
+
     spi_wrapper #(
         .NUM_CFG   (NUM_CFG),
         .NUM_STATUS(NUM_STATUS),
-        .REG_WIDTH (REG_WIDTH)
+        .REG_WIDTH (REG_WIDTH),
+        .RESET_VAL (CFG_RESET_VAL)
     ) spi_wrapper_i (
         .rstb      (rst_n),
         .clk       (clk),
